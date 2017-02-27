@@ -170,12 +170,49 @@ class FuncDeclExt(c_ast.Node):
 
     attr_names = ()
 
+
+class StructExt(c_ast.Struct):
+    def __init__(self, name, decls, attributes, coord=None):
+        super().__init__(name, decls, coord)
+        self.attributes = attributes
+
+    def children(self):
+        nodelist = []
+        if self.attributes is not None:
+            nodelist.append(("attributes", self.attributes))
+        return tuple(nodelist + list(super().children()))
+
+    attr_names = {}
+
+
+class UnionExt(c_ast.Union):
+    def __init__(self, name, decls, attributes, coord=None):
+        super().__init__(name, decls, coord)
+        self.attributes = attributes
+
+    def children(self):
+        nodelist = []
+        if self.attributes is not None:
+            nodelist.append(("attributes", self.attributes))
+        return tuple(nodelist + list(super().children()))
+
+    attr_names = {}
+
 # }}}
 
 
 # {{{ attributes
 
 class _AttributesMixin(object):
+    def _select_struct_union_ext_class(self, token):
+        """ Given a token (either STRUCT or UNION), selects the
+            appropriate AST class.
+        """
+        if token == 'struct':
+            return StructExt
+        else:
+            return UnionExt
+
     def p_attributes_opt_1(self, p):
         """ attributes_opt : attribute_decl attributes_opt
         """
@@ -275,6 +312,38 @@ class _AttributesMixin(object):
         """ function_specifier  : attribute_decl
         """
         p[0] = AttributeSpecifier(p[1])
+
+    def p_struct_or_union_specifier_ext_1(self, p):
+        """ struct_or_union_specifier   : struct_or_union attribute_decl ID
+                                        | struct_or_union attribute_decl TYPEID
+        """
+        klass = self._select_struct_union_ext_class(p[1])
+        p[0] = klass(
+            name=p[3],
+            decls=None,
+            attributes=p[2],
+            coord=self._coord(p.lineno(3)))
+
+    def p_struct_or_union_specifier_ext_2(self, p):
+        """ struct_or_union_specifier : struct_or_union attribute_decl brace_open struct_declaration_list brace_close
+        """
+        klass = self._select_struct_union_ext_class(p[1])
+        p[0] = klass(
+            name=None,
+            decls=p[4],
+            attributes=p[2],
+            coord=self._coord(p.lineno(3)))
+
+    def p_struct_or_union_specifier_ext_3(self, p):
+        """ struct_or_union_specifier   : struct_or_union attribute_decl ID brace_open struct_declaration_list brace_close
+                                        | struct_or_union attribute_decl TYPEID brace_open struct_declaration_list brace_close
+        """
+        klass = self._select_struct_union_ext_class(p[1])
+        p[0] = klass(
+            name=p[3],
+            decls=p[5],
+            attributes=p[2],
+            coord=self._coord(p.lineno(3)))
 
 # }}}
 
