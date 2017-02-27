@@ -1,5 +1,5 @@
 from pycparser.c_generator import CGenerator as CGeneratorBaseBuggy
-from pycparserext.ext_c_parser import FuncDeclExt, TypeDeclExt
+from pycparserext.ext_c_parser import FuncDeclExt, TypeDeclExt, StructExt, UnionExt
 import pycparser.c_ast as c_ast
 
 
@@ -126,6 +126,18 @@ class AsmAndAttributesMixin(object):
 
     def visit_AttributeSpecifier(self, n):
         return ' __attribute__((' + self.visit(n.exprlist) + '))'
+
+    def visit_StructExt(self, n):
+        name = 'struct'
+        if hasattr(n, "attributes") and n.attributes.exprs:
+            name += ' __attribute__((' + self.visit(n.attributes) + '))'
+        return self._generate_struct_union(n, name)
+
+    def visit_UnionExt(self, n):
+        name = 'union'
+        if hasattr(n, "attributes") and n.attributes.exprs:
+            name += ' __attribute__((' + self.visit(n.attributes) + '))'
+        return self._generate_struct_union(n, name)
 
 
 class GnuCGenerator(AsmAndAttributesMixin, CGeneratorBase):
